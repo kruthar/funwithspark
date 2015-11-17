@@ -1,17 +1,19 @@
 # funwithspark
 A collection of Spark examples
 
-To build:
+## To build:
 
-```
+Run sbt in the top level project
+```sh
 sbt clean package
 ```
 
-To Run Weather example:
+## Examples
+### Weather
 
-```
-[SPARK_HOME]/bin/spark-submit --master local[*] --class com.kruth.scala.Weather target/scala-2.11/funwithspark_2.11-0.1.jar
+```sh
+[SPARK_HOME]/bin/spark-submit --master local[*] --class com.kruth.spark.examples.weather.Weather target/scala-2.11/funwithspark_2.11-0.1.jar data/
 ```
 
-File for com.kruth.scala.Weather can be found at ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/gsn/AE000041196.dly
-Just download into top level of this project.
+Files for the weather example can be found at ftp://ftp.ncdc.noaa.gov/pub/data/ghcn/daily/gsn
+Just download into a data directory and specify the path in the spark-submit command.

@@ -1,4 +1,4 @@
-package com.kruth.scala.examples.weather
+package com.kruth.spark.examples.weather
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
@@ -24,7 +24,7 @@ object Weather {
       * -9999   -9999   -9999   -9999   -9999   -9999   -9999   -9999     380  I  346  I  319  I  302  I  296  I  \
       * 308  I  291  I  296  I  296  I  335  I  396  I  313  I
        */
-    val rawWeather = sc.textFile("AE000041196.dly")
+    val rawWeather = sc.textFile(args(0))
 
     /**
       * Used a fixed length Regex pattern to break each line into a list containing meta and daily values. splitWeather

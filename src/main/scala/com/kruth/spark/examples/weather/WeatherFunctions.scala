@@ -1,4 +1,4 @@
-package com.kruth.scala.examples.weather
+package com.kruth.spark.examples.weather
 
 /**
   * Created by kruthar on 11/16/15.

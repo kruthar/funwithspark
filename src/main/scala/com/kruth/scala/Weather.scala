@@ -1,7 +1,5 @@
 package com.kruth.scala
 
-import java.text.SimpleDateFormat
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -11,6 +9,8 @@ import scala.util.matching.Regex
   * Created by kruthar on 11/16/15.
   */
 object WeatherFunctions {
+  val daysInMonths = List(31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+
   /**
     * Converts a Celsius temperature to Fharenheit
     * @param temp
@@ -37,8 +37,48 @@ object WeatherFunctions {
     return day
   }
 
+  /**
+    * Formats date string in format yyyyMMdd to format yyyy-MM-dd
+    * @param dateString
+    * @return formatted date string
+    */
   def formatDateString(dateString: String): String = {
     return dateString.substring(0, 4) + "-" + dateString.substring(4, 6) + "-" + dateString.substring(6, 8)
+  }
+
+  /**
+    * Is the given year a leap year?
+    * @param year
+    * @return true if given year is a leap year, false otherwise
+    */
+  def isLeapYear(year: Int): Boolean = {
+    if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) {
+      return true
+    }
+    return false
+  }
+
+  /**
+    * Given a date calculate the day out of 365/366 of the year
+    * @param year
+    * @param month
+    * @param day
+    * @return the day of the year number
+    */
+  def getDayOfYear(year: Int, month: Int, day: Int): Int = {
+    var doy = 0
+    var counter = 0
+    while (counter < month - 1) {
+      doy += daysInMonths(counter)
+      counter += 1
+    }
+    doy += day
+
+    if (month > 2 && isLeapYear(year)) {
+      doy += 1
+    }
+
+    return doy
   }
 }
 
@@ -48,7 +88,7 @@ object Weather {
       "(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})" +
       "(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})$")
     val dailyValueSplitRegex = new Regex("^(.{5})(.)(.)(.)$")
-    val dateFormat = new SimpleDateFormat("yyyyMMdd")
+    val dateFormat = new java.text.SimpleDateFormat("yyyyMMdd")
 
     val conf = new SparkConf()
       .setAppName("Weather")
@@ -138,10 +178,68 @@ object Weather {
       .filter(daily => daily._1(3) == "TMIN")
       .reduce((a, b) => if (a._2._2(0).trim.toInt < b._2._2(0).trim.toInt) a else b)
 
+    /**
+      * Find the TMAX record for each day of the year
+      */
+    val dailyHeatRecords = validDailyWeather
+      .filter(daily => daily._1(3) == "TMAX")
+      .map(daily => (daily._1(2) + daily._2._1, daily))
+      .groupByKey()
+      .map(readings => {
+        readings._2.reduce((a, b) => if (a._2._2(0) > b._2._2(0)) a else b)
+      })
+
+    /**
+      * Gather the total number of record TMAX readings per year
+      */
+    val heatRecordsByYear = dailyHeatRecords
+      .map(record => record._1(1))
+      .groupBy(record => record)
+      .map(byYear => (byYear._1, byYear._2.count(a => true)))
+
+    /**
+      * The daily TMAX records per year, sorted in descending order
+      */
+    val topRecordHeatYears = heatRecordsByYear
+      .collect()
+      .sortBy(byYear => -byYear._2)
+      .take(10)
+
+    /**
+      * Find the TMIN record for each day of the year
+      */
+    val dailyColdRecords = validDailyWeather
+      .filter(daily => daily._1(3) == "TMIN")
+      .map(daily => (daily._1(2) + daily._2._1, daily))
+      .groupByKey()
+      .map(readings => {
+        readings._2.reduce((a, b) => if (a._2._2(0) < b._2._2(0)) a else b)
+      })
+
+    /**
+      * Gather the total number of record TMIN readings per year
+      */
+    val coldRecordsByYear = dailyColdRecords
+      .map(record => record._1(1))
+      .groupBy(record => record)
+      .map(byYear => (byYear._1, byYear._2.count(a => true)))
+
+    /**
+      * The daily TMIN records per year, sorted in descending order
+      */
+    val topRecordColdYears = coldRecordsByYear
+      .collect()
+      .sortBy(byYear => -byYear._2)
+      .take(10)
+
+    println("Daily TMAX records per year")
+    topRecordHeatYears.foreach(println)
+    println("Daily TMIN records per year")
+    topRecordColdYears.foreach(println)
     println("Date Range: " + boundaryDates)
     println("Hottest Temperature: " + hottestTemperature +
       " Fharenheit: " + WeatherFunctions.CelsiusToFahrenheit(hottestTemperature._2._2(0).toDouble / 10))
-    println("Coldest Temperature: " + hottestTemperature +
+    println("Coldest Temperature: " + coldestTemperature +
       " Fharenheit: " + WeatherFunctions.CelsiusToFahrenheit(coldestTemperature._2._2(0).toDouble / 10))
   }
 }
